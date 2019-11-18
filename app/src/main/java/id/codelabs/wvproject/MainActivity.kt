@@ -1,9 +1,9 @@
 package id.codelabs.wvproject
 
-import android.content.pm.PackageManager
+import android.annotation.SuppressLint
 import android.os.Bundle
-import android.webkit.URLUtil
-import android.webkit.WebResourceRequest
+import android.view.ViewTreeObserver
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
@@ -11,43 +11,55 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
+    val link = "http://whmnk.adipatikresna.co.id/"
+    private lateinit var mOnScrollChangedListener: ViewTreeObserver.OnScrollChangedListener
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        webview.loadUrl("https://facebook.com/")
+        webview.loadUrl(link)
         webview.settings.javaScriptEnabled = true
         webview.settings.setSupportZoom(false)
-        webview.webViewClient = MyWebViewClient()
+
+        webview.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                swipeRefresh.isRefreshing = false
+                super.onPageFinished(view, url)
+            }
+
+
+        }
+
+        webview.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                super.onProgressChanged(view, newProgress)
+
+            }
+        }
+
+        //swipe resfresh
+        swipeRefresh.setOnRefreshListener {
+            webview.loadUrl("javascript:window.location.reload(true)")
+        }
 
     }
 
-    class MyWebViewClient : WebViewClient() {
-        override fun shouldOverrideUrlLoading(
-            view: WebView?,
-            request: WebResourceRequest?
-        ): Boolean {
-            view?.loadUrl(request?.url.toString())
-            return true
+    override fun onStart() {
+        super.onStart()
+        mOnScrollChangedListener = object : ViewTreeObserver.OnScrollChangedListener {
+            override fun onScrollChanged() {
+                swipeRefresh.isEnabled = webview.scrollY == 0
+            }
         }
-
-        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-            view?.loadUrl(url)
-            return true
-        }
+        swipeRefresh.viewTreeObserver.addOnScrollChangedListener(mOnScrollChangedListener)
     }
 
-    fun appInstalled(uri: String): Boolean {
-        val pm = packageManager
-        try {
-            pm.getPackageInfo(uri, PackageManager.GET_ACTIVITIES)
-            return true
-        } catch (e: PackageManager.NameNotFoundException) {
-            
-        }
-        return false
+    override fun onStop() {
+        super.onStop()
+        swipeRefresh.viewTreeObserver.removeOnScrollChangedListener(mOnScrollChangedListener)
     }
-
 
     override fun onBackPressed() {
 
@@ -56,6 +68,5 @@ class MainActivity : AppCompatActivity() {
         } else {
             finish()
         }
-
     }
 }
